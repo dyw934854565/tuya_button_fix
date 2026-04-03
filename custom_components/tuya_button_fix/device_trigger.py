@@ -11,9 +11,9 @@ from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.helpers import device_trigger as device_trigger_helper
 from homeassistant.helpers.event import async_track_state_change_event
 
-from .const import DOMAIN, SUPPORTED_ATTRS
+from .const import DOMAIN, LOGGER_NAME, SUPPORTED_ATTRS
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger(LOGGER_NAME)
 
 ALLOWED_DOMAINS: set[str] = {
     "binary_sensor",

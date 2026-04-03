@@ -6,9 +6,9 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .const import DOMAIN
+from .const import DOMAIN, LOGGER_NAME
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger(LOGGER_NAME)
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:
@@ -47,7 +47,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if part
         ).lower()
 
-        if not any(k in haystack for k in ("switch_mode", "action", "click", "press")):
+        matched = any(k in haystack for k in ("switch_mode", "switchmode", "action", "click", "press", "button", "key"))
+        if not matched:
             if tuya_like <= 50:
                 LOGGER.debug(
                     "Tuya-like entity skipped entity_id=%s domain=%s device_id=%s platform=%s unique_id=%s original_name=%s",
@@ -59,6 +60,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                     getattr(ent, "original_name", None),
                 )
             continue
+        if tuya_like <= 50:
+            LOGGER.debug(
+                "Tuya action candidate entity_id=%s domain=%s device_id=%s platform=%s unique_id=%s original_name=%s",
+                ent.entity_id,
+                ent.domain,
+                ent.device_id,
+                platform,
+                getattr(ent, "unique_id", None),
+                getattr(ent, "original_name", None),
+            )
 
         candidate_device_ids.add(ent.device_id)
 
