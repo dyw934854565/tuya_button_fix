@@ -80,32 +80,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     attached = 0
-    mirror_map: dict[str, str] = {}
     for base_device_id, entity_ids in action_device_entities.items():
         base = device_reg.async_get(base_device_id)
         if base is None:
             LOGGER.debug("Candidate device_id=%s not found in device registry", base_device_id)
             continue
+        if not base.identifiers:
+            LOGGER.debug(
+                "Candidate device_id=%s has no identifiers, cannot attach config entry (entities=%s)",
+                base_device_id,
+                entity_ids,
+            )
+            continue
 
-        mirror = device_reg.async_get_or_create(
+        linked = device_reg.async_get_or_create(
             config_entry_id=entry.entry_id,
-            identifiers={(DOMAIN, base_device_id)},
-            name=(base.name_by_user or base.name or "Tuya Button") + " Buttons",
-            manufacturer=base.manufacturer or "Tuya",
-            model=(base.model or "") + " Button",
+            identifiers=set(base.identifiers),
         )
-        mirror_map[mirror.id] = base_device_id
 
         LOGGER.debug(
-            "Created/updated mirror device base_device_id=%s mirror_id=%s name=%s action_entities=%s",
+            "Linked config entry to device base_device_id=%s linked_id=%s name=%s action_entities=%s",
             base_device_id,
-            mirror.id,
-            mirror.name_by_user or mirror.name,
+            linked.id,
+            linked.name_by_user or linked.name,
             entity_ids,
         )
         attached += 1
 
-    hass.data[DOMAIN][entry.entry_id]["mirror_map"] = mirror_map
     LOGGER.debug("Attached config entry to %s devices", attached)
 
     await hass.config_entries.async_forward_entry_setups(entry, ["device_trigger"])

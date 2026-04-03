@@ -142,12 +142,6 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str):
             if domain == DOMAIN:
                 base_device_id = identifier
                 break
-    else:
-        for entry_data in hass.data.get(DOMAIN, {}).values():
-            mirror_map = entry_data.get("mirror_map", {})
-            if device_id in mirror_map:
-                base_device_id = mirror_map[device_id]
-                break
 
     triggers: list[dict] = []
     entries = er.async_entries_for_device(entity_reg, base_device_id)
