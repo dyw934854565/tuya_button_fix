@@ -2,6 +2,10 @@ DOMAIN = "tuya_button_fix"
 LOGGER_NAME = "custom_components.tuya_button_fix"
 EVENT_TYPE = "tuya_button_click"
 SUPPORTED_ATTRS = (
+    "scene_1",
+    "scene_2",
+    "scene_3",
+    "scene_4",
     "switch_mode1",
     "switch_mode2",
     "switch_mode3",

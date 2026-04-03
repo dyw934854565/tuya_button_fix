@@ -11,14 +11,19 @@
     "trigger_type": {
       "single_click": "单击",
       "double_click": "双击",
-      "long_press": "长按"
+      "long_press": "长按",
+      "scene_click": "场景"
     },
     "trigger_subtype": {
       "button": "按键",
       "button_1": "按键 1",
       "button_2": "按键 2",
       "button_3": "按键 3",
-      "button_4": "按键 4"
+      "button_4": "按键 4",
+      "scene_1": "场景 1",
+      "scene_2": "场景 2",
+      "scene_3": "场景 3",
+      "scene_4": "场景 4"
     }
   }
 }

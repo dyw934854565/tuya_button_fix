@@ -11,14 +11,19 @@
     "trigger_type": {
       "single_click": "Single click",
       "double_click": "Double click",
-      "long_press": "Long press"
+      "long_press": "Long press",
+      "scene_click": "Scene"
     },
     "trigger_subtype": {
       "button": "Button",
       "button_1": "Button 1",
       "button_2": "Button 2",
       "button_3": "Button 3",
-      "button_4": "Button 4"
+      "button_4": "Button 4",
+      "scene_1": "Scene 1",
+      "scene_2": "Scene 2",
+      "scene_3": "Scene 3",
+      "scene_4": "Scene 4"
     }
   }
 }

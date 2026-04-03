@@ -30,6 +30,11 @@ _TRIGGER_BASE_SCHEMA = vol.Schema(
 
 _INFO_LOGGED = False
 
+# Only enable special "scene_click" mapping for these Tuya device ids
+_SCENE_ONLY_TUYA_DEVICES: set[str] = {
+    "6c4fa5eaa2b73d87fdf9cp",
+}
+
 ALLOWED_DOMAINS: set[str] = {
     "binary_sensor",
     "button",
@@ -44,17 +49,20 @@ ALLOWED_DOMAINS: set[str] = {
 TRIGGER_TYPE_SINGLE = "single_click"
 TRIGGER_TYPE_DOUBLE = "double_click"
 TRIGGER_TYPE_LONG = "long_press"
+TRIGGER_TYPE_SCENE = "scene_click"
 
 TRIGGER_TYPES: tuple[str, ...] = (
     TRIGGER_TYPE_SINGLE,
     TRIGGER_TYPE_DOUBLE,
     TRIGGER_TYPE_LONG,
+    TRIGGER_TYPE_SCENE,
 )
 
 STATE_MATCH: dict[str, set[str]] = {
     TRIGGER_TYPE_SINGLE: {"click", "single_click"},
     TRIGGER_TYPE_DOUBLE: {"double_click"},
     TRIGGER_TYPE_LONG: {"press", "long_press"},
+    TRIGGER_TYPE_SCENE: {"scene"},
 }
 
 TRIGGER_SCHEMA = _TRIGGER_BASE_SCHEMA.extend(
@@ -68,6 +76,9 @@ TRIGGER_SCHEMA = _TRIGGER_BASE_SCHEMA.extend(
 def _extract_subtype(entry: er.RegistryEntry) -> str:
     unique_id = (entry.unique_id or "").lower()
     for i in range(1, 9):
+        if f"scene_{i}" in unique_id or f"scene{i}" in unique_id:
+            return f"scene_{i}"
+    for i in range(1, 9):
         if f"switch_mode{i}" in unique_id or f"switchmode{i}" in unique_id:
             return f"button_{i}"
 
@@ -77,6 +88,17 @@ def _extract_subtype(entry: er.RegistryEntry) -> str:
             return f"button_{i}"
 
     return "button"
+
+def _trigger_types_for_entry(entry: er.RegistryEntry, base_device_id: str) -> tuple[str, ...]:
+    unique_id = (entry.unique_id or "").lower()
+    entity_id = (entry.entity_id or "").lower()
+    original_name = (getattr(entry, "original_name", None) or "").lower()
+    # Only expose scene triggers for whitelisted Tuya devices
+    if base_device_id in _SCENE_ONLY_TUYA_DEVICES and (
+        "scene_" in unique_id or "scene_" in entity_id or "scene" in original_name
+    ):
+        return (TRIGGER_TYPE_SCENE,)
+    return (TRIGGER_TYPE_SINGLE, TRIGGER_TYPE_DOUBLE, TRIGGER_TYPE_LONG)
 
 def _iter_action_strings(value):
     if value is None:
@@ -170,8 +192,10 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str):
         if not _looks_like_action_entity(entry):
             continue
 
-        subtype = _extract_subtype(entry)
-        for trigger_type in TRIGGER_TYPES:
+        subtype_detected = _extract_subtype(entry)
+        # Show entity name together with subtype, to make UI labels clearer
+        subtype_display = (getattr(entry, "original_name", None) or entry.entity_id or "").strip() or subtype_detected
+        for trigger_type in _trigger_types_for_entry(entry, base_device_id):
             triggers.append(
                 {
                     CONF_PLATFORM: "device",
@@ -179,7 +203,7 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str):
                     CONF_DEVICE_ID: device_id,
                     CONF_ENTITY_ID: entry.entity_id,
                     CONF_TYPE: trigger_type,
-                    CONF_SUBTYPE: subtype,
+                    CONF_SUBTYPE: subtype_display,
                 }
             )
 
