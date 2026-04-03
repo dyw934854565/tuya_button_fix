@@ -93,7 +93,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             name=(base.name_by_user or base.name or "Tuya Button") + " Buttons",
             manufacturer=base.manufacturer or "Tuya",
             model=(base.model or "") + " Button",
-            via_device_id=base_device_id,
+            via_device=base_device_id,
         )
         mirror_map[mirror.id] = base_device_id
 
