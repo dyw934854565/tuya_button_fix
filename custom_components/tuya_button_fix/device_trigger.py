@@ -50,7 +50,7 @@ def _looks_like_action_entity(entry: er.RegistryEntry) -> bool:
         )
         if part
     ).lower()
-    return "switch_mode" in haystack
+    return any(k in haystack for k in ("switch_mode", "action"))
 
 
 async def async_get_triggers(hass: HomeAssistant, device_id: str):
@@ -61,7 +61,7 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str):
     LOGGER.debug("async_get_triggers device_id=%s entity_count=%s", device_id, len(entries))
 
     for entry in entries:
-        if entry.domain not in {"sensor", "select"}:
+        if entry.domain not in {"sensor", "select", "event"}:
             continue
         if not _looks_like_action_entity(entry):
             continue

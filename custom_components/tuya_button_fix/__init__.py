@@ -21,14 +21,20 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     entity_reg = er.async_get(hass)
     device_reg = dr.async_get(hass)
 
+    tuya_like = 0
+    tuya_like_with_device = 0
     candidate_device_ids: set[str] = set()
     for ent in list(entity_reg.entities.values()):
         if getattr(ent, "device_id", None) is None:
             continue
-        if ent.domain not in {"sensor", "select"}:
+        if ent.domain not in {"sensor", "select", "event"}:
             continue
-        if getattr(ent, "platform", None) != "tuya":
+        platform = getattr(ent, "platform", None)
+        if not platform or "tuya" not in platform:
             continue
+
+        tuya_like += 1
+        tuya_like_with_device += 1
 
         haystack = " ".join(
             part
@@ -40,13 +46,25 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
             if part
         ).lower()
-        if "switch_mode" not in haystack:
+
+        if not any(k in haystack for k in ("switch_mode", "action", "click", "press")):
+            if tuya_like <= 50:
+                LOGGER.debug(
+                    "Tuya-like entity skipped entity_id=%s domain=%s device_id=%s platform=%s unique_id=%s original_name=%s",
+                    ent.entity_id,
+                    ent.domain,
+                    ent.device_id,
+                    platform,
+                    getattr(ent, "unique_id", None),
+                    getattr(ent, "original_name", None),
+                )
             continue
 
         candidate_device_ids.add(ent.device_id)
 
     LOGGER.debug(
-        "Discovered %s candidate Tuya devices with action entities",
+        "Tuya-like entities with device_id=%s, discovered %s candidate devices with action entities",
+        tuya_like_with_device,
         len(candidate_device_ids),
     )
 
