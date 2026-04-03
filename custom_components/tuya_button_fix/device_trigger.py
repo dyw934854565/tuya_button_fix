@@ -6,7 +6,7 @@ import voluptuous as vol
 
 from homeassistant.const import CONF_DEVICE_ID, CONF_DOMAIN, CONF_ENTITY_ID, CONF_PLATFORM, CONF_TYPE
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er
+from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.helpers import device_trigger as device_trigger_helper
 from homeassistant.helpers.event import async_track_state_change_event
 
@@ -42,32 +42,19 @@ def _looks_like_action_entity(entry: er.RegistryEntry) -> bool:
         for part in (
             entry.entity_id,
             entry.unique_id or "",
-            entry.original_name or "",
-            entry.original_object_id or "",
+            getattr(entry, "original_name", None) or "",
+            getattr(entry, "original_object_id", None) or "",
         )
         if part
     ).lower()
     return "switch_mode" in haystack
 
 
-async def async_get_triggers(hass: HomeAssistant, 
-device_id: str):
+async def async_get_triggers(hass: HomeAssistant, device_id: str):
     entity_reg = er.async_get(hass)
-    device_reg = dr.async_get(hass)
-
-    base_device_id = device_id
-    for entry_data in hass.data.get(DOMAIN, {}).values():
-        mirror_map = entry_data.get("mirror_map", {})
-        if device_id in mirror_map:
-            base_device_id = mirror_map[device_id]
-            break
-
-    device = device_reg.async_get(base_device_id)
-    if device is None:
-        return []
 
     triggers: list[dict] = []
-    for entry in er.async_entries_for_device(entity_reg, base_device_id):
+    for entry in er.async_entries_for_device(entity_reg, device_id):
         if entry.domain not in {"sensor", "select"}:
             continue
         if not _looks_like_action_entity(entry):
