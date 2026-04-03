@@ -5,6 +5,11 @@ import logging
 
 import voluptuous as vol
 
+try:
+    from homeassistant.const import CONF_SUBTYPE
+except ImportError:
+    CONF_SUBTYPE = "subtype"
+
 from homeassistant.const import CONF_DEVICE_ID, CONF_DOMAIN, CONF_ENTITY_ID, CONF_PLATFORM, CONF_TYPE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv, entity_registry as er
@@ -54,8 +59,22 @@ TRIGGER_SCHEMA = _TRIGGER_BASE_SCHEMA.extend(
     {
         vol.Required(CONF_ENTITY_ID): cv.entity_id,
         vol.Required(CONF_TYPE): vol.In(TRIGGER_TYPES),
+        vol.Optional(CONF_SUBTYPE): cv.string,
     }
 )
+
+def _extract_subtype(entry: er.RegistryEntry) -> str:
+    unique_id = (entry.unique_id or "").lower()
+    for i in range(1, 9):
+        if f"switch_mode{i}" in unique_id or f"switchmode{i}" in unique_id:
+            return f"button_{i}"
+
+    name = (getattr(entry, "original_name", None) or "").strip()
+    for i in range(1, 9):
+        if str(i) in name:
+            return f"button_{i}"
+
+    return "button"
 
 
 def _looks_like_action_entity(entry: er.RegistryEntry) -> bool:
@@ -94,9 +113,21 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str):
 
     entity_reg = er.async_get(hass)
 
+    base_device_id = device_id
+    for entry_data in hass.data.get(DOMAIN, {}).values():
+        mirror_map = entry_data.get("mirror_map", {})
+        if device_id in mirror_map:
+            base_device_id = mirror_map[device_id]
+            break
+
     triggers: list[dict] = []
-    entries = er.async_entries_for_device(entity_reg, device_id)
-    LOGGER.debug("async_get_triggers device_id=%s entity_count=%s", device_id, len(entries))
+    entries = er.async_entries_for_device(entity_reg, base_device_id)
+    LOGGER.debug(
+        "async_get_triggers device_id=%s base_device_id=%s entity_count=%s",
+        device_id,
+        base_device_id,
+        len(entries),
+    )
 
     logged = 0
     for entry in entries:
@@ -116,6 +147,7 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str):
         if not _looks_like_action_entity(entry):
             continue
 
+        subtype = _extract_subtype(entry)
         for trigger_type in TRIGGER_TYPES:
             triggers.append(
                 {
@@ -124,6 +156,7 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str):
                     CONF_DEVICE_ID: device_id,
                     CONF_ENTITY_ID: entry.entity_id,
                     CONF_TYPE: trigger_type,
+                    CONF_SUBTYPE: subtype,
                 }
             )
 
@@ -146,6 +179,7 @@ async def async_attach_trigger(
     entity_id: str = config[CONF_ENTITY_ID]
     trigger_type: str = config[CONF_TYPE]
     state_match = STATE_MATCH[trigger_type]
+    subtype = config.get(CONF_SUBTYPE)
 
     async def _handle_event(event):
         new_state = event.data.get("new_state")
@@ -179,8 +213,9 @@ async def async_attach_trigger(
                 "device_id": config[CONF_DEVICE_ID],
                 "entity_id": entity_id,
                 "type": trigger_type,
+                "subtype": subtype,
             },
         )
 
-    LOGGER.debug("attach_trigger entity_id=%s type=%s", entity_id, trigger_type)
+    LOGGER.debug("attach_trigger entity_id=%s type=%s subtype=%s", entity_id, trigger_type, subtype)
     return async_track_state_change_event(hass, [entity_id], _handle_event)

@@ -12,6 +12,13 @@
       "single_click": "单击",
       "double_click": "双击",
       "long_press": "长按"
+    },
+    "trigger_subtype": {
+      "button": "按键",
+      "button_1": "按键 1",
+      "button_2": "按键 2",
+      "button_3": "按键 3",
+      "button_4": "按键 4"
     }
   }
 }

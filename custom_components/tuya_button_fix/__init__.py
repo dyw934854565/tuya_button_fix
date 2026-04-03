@@ -23,7 +23,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     tuya_like = 0
     tuya_like_with_device = 0
-    candidate_device_ids: set[str] = set()
+    action_device_entities: dict[str, list[str]] = {}
     for ent in list(entity_reg.entities.values()):
         if getattr(ent, "device_id", None) is None:
             continue
@@ -71,41 +71,42 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
                 getattr(ent, "original_name", None),
             )
 
-        candidate_device_ids.add(ent.device_id)
+        action_device_entities.setdefault(ent.device_id, []).append(ent.entity_id)
 
     LOGGER.debug(
-        "Tuya-like entities with device_id=%s, discovered %s candidate devices with action entities",
+        "Tuya-like entities with device_id=%s, discovered %s devices with action entities",
         tuya_like_with_device,
-        len(candidate_device_ids),
+        len(action_device_entities),
     )
 
     attached = 0
-    for device_id in candidate_device_ids:
-        device = device_reg.async_get(device_id)
-        if device is None:
-            LOGGER.debug("Candidate device_id=%s not found in device registry", device_id)
-            continue
-        if not device.identifiers:
-            LOGGER.debug(
-                "Candidate device_id=%s has no identifiers, cannot attach config entry",
-                device_id,
-            )
+    mirror_map: dict[str, str] = {}
+    for base_device_id, entity_ids in action_device_entities.items():
+        base = device_reg.async_get(base_device_id)
+        if base is None:
+            LOGGER.debug("Candidate device_id=%s not found in device registry", base_device_id)
             continue
 
-        linked = device_reg.async_get_or_create(
+        mirror = device_reg.async_get_or_create(
             config_entry_id=entry.entry_id,
-            identifiers=set(device.identifiers),
+            identifiers={(DOMAIN, base_device_id)},
+            name=(base.name_by_user or base.name or "Tuya Button") + " Buttons",
+            manufacturer=base.manufacturer or "Tuya",
+            model=(base.model or "") + " Button",
+            via_device_id=base_device_id,
         )
+        mirror_map[mirror.id] = base_device_id
+
         LOGGER.debug(
-            "Linked device device_id=%s linked_id=%s name=%s identifiers=%s config_entries=%s",
-            device_id,
-            linked.id,
-            linked.name_by_user or linked.name,
-            list(linked.identifiers),
-            list(linked.config_entries),
+            "Created/updated mirror device base_device_id=%s mirror_id=%s name=%s action_entities=%s",
+            base_device_id,
+            mirror.id,
+            mirror.name_by_user or mirror.name,
+            entity_ids,
         )
         attached += 1
 
+    hass.data[DOMAIN][entry.entry_id]["mirror_map"] = mirror_map
     LOGGER.debug("Attached config entry to %s devices", attached)
     return True
 
