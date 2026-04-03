@@ -93,7 +93,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             name=(base.name_by_user or base.name or "Tuya Button") + " Buttons",
             manufacturer=base.manufacturer or "Tuya",
             model=(base.model or "") + " Button",
-            via_device=base_device_id,
         )
         mirror_map[mirror.id] = base_device_id
 
@@ -108,9 +107,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data[DOMAIN][entry.entry_id]["mirror_map"] = mirror_map
     LOGGER.debug("Attached config entry to %s devices", attached)
+
+    await hass.config_entries.async_forward_entry_setups(entry, ["device_trigger"])
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    await hass.config_entries.async_unload_platforms(entry, ["device_trigger"])
     hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
     return True

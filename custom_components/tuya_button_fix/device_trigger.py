@@ -12,7 +12,7 @@ except ImportError:
 
 from homeassistant.const import CONF_DEVICE_ID, CONF_DOMAIN, CONF_ENTITY_ID, CONF_PLATFORM, CONF_TYPE
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import config_validation as cv, entity_registry as er
+from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import DOMAIN, LOGGER_NAME, SUPPORTED_ATTRS
@@ -131,13 +131,21 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str):
         _INFO_LOGGED = True
 
     entity_reg = er.async_get(hass)
+    device_reg = dr.async_get(hass)
 
     base_device_id = device_id
-    for entry_data in hass.data.get(DOMAIN, {}).values():
-        mirror_map = entry_data.get("mirror_map", {})
-        if device_id in mirror_map:
-            base_device_id = mirror_map[device_id]
-            break
+    device = device_reg.async_get(device_id)
+    if device is not None:
+        for domain, identifier in device.identifiers:
+            if domain == DOMAIN:
+                base_device_id = identifier
+                break
+    else:
+        for entry_data in hass.data.get(DOMAIN, {}).values():
+            mirror_map = entry_data.get("mirror_map", {})
+            if device_id in mirror_map:
+                base_device_id = mirror_map[device_id]
+                break
 
     triggers: list[dict] = []
     entries = er.async_entries_for_device(entity_reg, base_device_id)
