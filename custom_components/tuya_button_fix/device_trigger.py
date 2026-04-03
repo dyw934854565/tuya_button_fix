@@ -19,12 +19,14 @@ from .const import DOMAIN, LOGGER_NAME, SUPPORTED_ATTRS
 
 LOGGER = logging.getLogger(LOGGER_NAME)
 
-try:
-    from homeassistant.components.device_automation import TRIGGER_BASE_SCHEMA as _TRIGGER_BASE_SCHEMA
-except ImportError:
-    from homeassistant.helpers import device_trigger as device_trigger_helper
-
-    _TRIGGER_BASE_SCHEMA = device_trigger_helper.DEVICE_TRIGGER_BASE_SCHEMA
+_TRIGGER_BASE_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_PLATFORM): "device",
+        vol.Required(CONF_DOMAIN): DOMAIN,
+        vol.Required(CONF_DEVICE_ID): str,
+    },
+    extra=vol.ALLOW_EXTRA,
+)
 
 _INFO_LOGGED = False
 
