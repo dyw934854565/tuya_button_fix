@@ -6,5 +6,12 @@
         "description": "为涂鸦按钮补充“单击 / 双击 / 长按”等设备触发条件。"
       }
     }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "single_click": "单击",
+      "double_click": "双击",
+      "long_press": "长按"
+    }
   }
 }

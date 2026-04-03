@@ -6,5 +6,12 @@
         "description": "Enable additional device triggers for Tuya button click/double-click/long-press actions."
       }
     }
+  },
+  "device_automation": {
+    "trigger_type": {
+      "single_click": "Single click",
+      "double_click": "Double click",
+      "long_press": "Long press"
+    }
   }
 }
