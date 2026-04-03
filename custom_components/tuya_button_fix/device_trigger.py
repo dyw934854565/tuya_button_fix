@@ -76,6 +76,25 @@ def _extract_subtype(entry: er.RegistryEntry) -> str:
 
     return "button"
 
+def _iter_action_strings(value):
+    if value is None:
+        return
+    if isinstance(value, str):
+        yield value
+        return
+    if isinstance(value, (int, float, bool)):
+        yield str(value)
+        return
+    if isinstance(value, dict):
+        for v in value.values():
+            yield from _iter_action_strings(v)
+        return
+    if isinstance(value, (list, tuple, set)):
+        for v in value:
+            yield from _iter_action_strings(v)
+        return
+    yield str(value)
+
 
 def _looks_like_action_entity(entry: er.RegistryEntry) -> bool:
     haystack = " ".join(
@@ -186,14 +205,38 @@ async def async_attach_trigger(
         if new_state is None:
             return
 
-        ok = str(new_state.state) in state_match
-        if not ok:
-            for attr in SUPPORTED_ATTRS:
-                val = new_state.attributes.get(attr)
-                if val and str(val) in state_match:
+        ok = False
+        seen: set[str] = set()
+        for s in _iter_action_strings(new_state.state):
+            s = str(s)
+            if s:
+                seen.add(s)
+                if s in state_match:
                     ok = True
                     break
+
         if not ok:
+            for attr in SUPPORTED_ATTRS:
+                if attr not in new_state.attributes:
+                    continue
+                val = new_state.attributes.get(attr)
+                for s in _iter_action_strings(val):
+                    s = str(s)
+                    if s:
+                        seen.add(s)
+                        if s in state_match:
+                            ok = True
+                            break
+                if ok:
+                    break
+
+        if not ok:
+            LOGGER.debug(
+                "trigger not matched entity_id=%s type=%s candidates=%s",
+                entity_id,
+                trigger_type,
+                sorted(seen)[:20],
+            )
             return
 
         LOGGER.debug(
