@@ -5,7 +5,6 @@ import logging
 
 import voluptuous as vol
 
-from homeassistant.components.device_automation import TRIGGER_BASE_SCHEMA
 from homeassistant.const import CONF_DEVICE_ID, CONF_DOMAIN, CONF_ENTITY_ID, CONF_PLATFORM, CONF_TYPE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv, entity_registry as er
@@ -14,7 +13,15 @@ from homeassistant.helpers.event import async_track_state_change_event
 from .const import DOMAIN, LOGGER_NAME, SUPPORTED_ATTRS
 
 LOGGER = logging.getLogger(LOGGER_NAME)
-LOGGER.debug("device_trigger loaded")
+
+try:
+    from homeassistant.components.device_automation import TRIGGER_BASE_SCHEMA as _TRIGGER_BASE_SCHEMA
+except ImportError:
+    from homeassistant.helpers import device_trigger as device_trigger_helper
+
+    _TRIGGER_BASE_SCHEMA = device_trigger_helper.DEVICE_TRIGGER_BASE_SCHEMA
+
+_INFO_LOGGED = False
 
 ALLOWED_DOMAINS: set[str] = {
     "binary_sensor",
@@ -43,7 +50,7 @@ STATE_MATCH: dict[str, set[str]] = {
     TRIGGER_TYPE_LONG: {"press", "long_press"},
 }
 
-TRIGGER_SCHEMA = TRIGGER_BASE_SCHEMA.extend(
+TRIGGER_SCHEMA = _TRIGGER_BASE_SCHEMA.extend(
     {
         vol.Required(CONF_ENTITY_ID): cv.entity_id,
         vol.Required(CONF_TYPE): vol.In(TRIGGER_TYPES),
@@ -80,6 +87,11 @@ def _looks_like_action_entity(entry: er.RegistryEntry) -> bool:
 
 
 async def async_get_triggers(hass: HomeAssistant, device_id: str):
+    global _INFO_LOGGED
+    if not _INFO_LOGGED:
+        LOGGER.info("device triggers requested")
+        _INFO_LOGGED = True
+
     entity_reg = er.async_get(hass)
 
     triggers: list[dict] = []
