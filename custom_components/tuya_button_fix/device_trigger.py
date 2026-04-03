@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable
+import logging
 
 import voluptuous as vol
 
@@ -11,6 +12,8 @@ from homeassistant.helpers import device_trigger as device_trigger_helper
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import DOMAIN, SUPPORTED_ATTRS
+
+LOGGER = logging.getLogger(__name__)
 
 TRIGGER_TYPE_SINGLE = "single_click"
 TRIGGER_TYPE_DOUBLE = "double_click"
@@ -54,7 +57,10 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str):
     entity_reg = er.async_get(hass)
 
     triggers: list[dict] = []
-    for entry in er.async_entries_for_device(entity_reg, device_id):
+    entries = er.async_entries_for_device(entity_reg, device_id)
+    LOGGER.debug("async_get_triggers device_id=%s entity_count=%s", device_id, len(entries))
+
+    for entry in entries:
         if entry.domain not in {"sensor", "select"}:
             continue
         if not _looks_like_action_entity(entry):
@@ -71,6 +77,7 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str):
                 }
             )
 
+    LOGGER.debug("async_get_triggers device_id=%s triggers=%s", device_id, len(triggers))
     return triggers
 
 
@@ -105,6 +112,14 @@ async def async_attach_trigger(
         if not ok:
             return
 
+        LOGGER.debug(
+            "trigger fired entity_id=%s type=%s state=%s attrs=%s",
+            entity_id,
+            trigger_type,
+            new_state.state,
+            {k: new_state.attributes.get(k) for k in SUPPORTED_ATTRS if k in new_state.attributes},
+        )
+
         hass.async_run_job(
             action,
             {
@@ -117,4 +132,5 @@ async def async_attach_trigger(
             },
         )
 
+    LOGGER.debug("attach_trigger entity_id=%s type=%s", entity_id, trigger_type)
     return async_track_state_change_event(hass, [entity_id], _handle_event)
