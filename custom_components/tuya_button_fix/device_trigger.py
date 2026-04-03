@@ -15,6 +15,17 @@ from .const import DOMAIN, SUPPORTED_ATTRS
 
 LOGGER = logging.getLogger(__name__)
 
+ALLOWED_DOMAINS: set[str] = {
+    "binary_sensor",
+    "button",
+    "event",
+    "number",
+    "select",
+    "sensor",
+    "switch",
+    "text",
+}
+
 TRIGGER_TYPE_SINGLE = "single_click"
 TRIGGER_TYPE_DOUBLE = "double_click"
 TRIGGER_TYPE_LONG = "long_press"
@@ -50,7 +61,21 @@ def _looks_like_action_entity(entry: er.RegistryEntry) -> bool:
         )
         if part
     ).lower()
-    return any(k in haystack for k in ("switch_mode", "action"))
+    return any(
+        k in haystack
+        for k in (
+            "switch_mode",
+            "switchmode",
+            "action",
+            "click",
+            "double",
+            "press",
+            "long",
+            "button",
+            "key",
+            "scene",
+        )
+    )
 
 
 async def async_get_triggers(hass: HomeAssistant, device_id: str):
@@ -60,8 +85,20 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str):
     entries = er.async_entries_for_device(entity_reg, device_id)
     LOGGER.debug("async_get_triggers device_id=%s entity_count=%s", device_id, len(entries))
 
+    logged = 0
     for entry in entries:
-        if entry.domain not in {"sensor", "select", "event"}:
+        if logged < 50:
+            LOGGER.debug(
+                "device entity entity_id=%s domain=%s unique_id=%s original_name=%s platform=%s",
+                entry.entity_id,
+                entry.domain,
+                getattr(entry, "unique_id", None),
+                getattr(entry, "original_name", None),
+                getattr(entry, "platform", None),
+            )
+            logged += 1
+
+        if entry.domain not in ALLOWED_DOMAINS:
             continue
         if not _looks_like_action_entity(entry):
             continue

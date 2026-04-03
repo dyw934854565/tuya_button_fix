@@ -81,9 +81,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             )
             continue
 
-        device_reg.async_get_or_create(
+        linked = device_reg.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers=set(device.identifiers),
+        )
+        LOGGER.debug(
+            "Linked device device_id=%s linked_id=%s name=%s identifiers=%s config_entries=%s",
+            device_id,
+            linked.id,
+            linked.name_by_user or linked.name,
+            list(linked.identifiers),
+            list(linked.config_entries),
         )
         attached += 1
 
