@@ -1,0 +1,10 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Tuya Button Fix",
+        "description": "Enable additional device triggers for Tuya button click/double-click/long-press actions."
+      }
+    }
+  }
+}

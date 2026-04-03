@@ -1,0 +1,11 @@
+{
+  "domain": "tuya_button_fix",
+  "name": "Tuya Button Fix",
+  "config_flow": true,
+  "documentation": "https://github.com/dyw934854565/tuya_button_fix",
+  "issue_tracker": "https://github.com/dyw934854565/tuya_button_fix/issues",
+  "requirements": [],
+  "codeowners": [],
+  "version": "0.1.0",
+  "iot_class": "cloud_push"
+}
