@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 
-from .const import DOMAIN, LOGGER_NAME, SUPPORTED_ATTRS
+from .const import DOMAIN, LOGGER_NAME, SUPPORTED_ATTRS, SCENE_DID
 
 LOGGER = logging.getLogger(LOGGER_NAME)
 
@@ -32,7 +32,7 @@ _INFO_LOGGED = False
 
 # Only enable special "scene_click" mapping for these Tuya device ids
 _SCENE_ONLY_TUYA_DEVICES: set[str] = {
-    "6c4fa5eaa2b73d87fdf9cp",
+    SCENE_DID,
 }
 
 ALLOWED_DOMAINS: set[str] = {
@@ -89,6 +89,10 @@ def _extract_subtype(entry: er.RegistryEntry) -> str:
 
     return "button"
 
+def _is_action_unique_id(unique_id: str | None) -> bool:
+    uid = (unique_id or "").lower()
+    return "switch_mode" in uid or "switchmode" in uid or "scene_" in uid or "scene" in uid
+
 def _trigger_types_for_entry(entry: er.RegistryEntry, base_device_id: str) -> tuple[str, ...]:
     unique_id = (entry.unique_id or "").lower()
     entity_id = (entry.entity_id or "").lower()
@@ -98,6 +102,8 @@ def _trigger_types_for_entry(entry: er.RegistryEntry, base_device_id: str) -> tu
         "scene_" in unique_id or "scene_" in entity_id or "scene" in original_name
     ):
         return (TRIGGER_TYPE_SCENE,)
+    if "scene_" in unique_id or "scene_" in entity_id:
+        return ()
     return (TRIGGER_TYPE_SINGLE, TRIGGER_TYPE_DOUBLE, TRIGGER_TYPE_LONG)
 
 def _iter_action_strings(value):
@@ -119,33 +125,31 @@ def _iter_action_strings(value):
         return
     yield str(value)
 
+def _summarize_state(state):
+    if state is None:
+        return None
+    attrs = state.attributes or {}
+    interesting = {}
+    for key in ("event_type", "event_types"):
+        if key in attrs:
+            interesting[key] = attrs.get(key)
+    for key in SUPPORTED_ATTRS:
+        if key in attrs:
+            interesting[key] = attrs.get(key)
+    return {
+        "state": state.state,
+        "attrs": interesting,
+        "last_changed": getattr(state, "last_changed", None),
+        "last_updated": getattr(state, "last_updated", None),
+    }
+
 
 def _looks_like_action_entity(entry: er.RegistryEntry) -> bool:
-    haystack = " ".join(
-        part
-        for part in (
-            entry.entity_id,
-            entry.unique_id or "",
-            getattr(entry, "original_name", None) or "",
-            getattr(entry, "original_object_id", None) or "",
-        )
-        if part
-    ).lower()
-    return any(
-        k in haystack
-        for k in (
-            "switch_mode",
-            "switchmode",
-            "action",
-            "click",
-            "double",
-            "press",
-            "long",
-            "button",
-            "key",
-            "scene",
-        )
-    )
+    # Avoid false positives (e.g. battery entities of a device named "button").
+    # Only treat entities as actionable when their unique_id indicates an action DP.
+    if entry.domain == "event":
+        return _is_action_unique_id(entry.unique_id)
+    return _is_action_unique_id(entry.unique_id)
 
 
 async def async_get_triggers(hass: HomeAssistant, device_id: str):
@@ -223,12 +227,31 @@ async def async_attach_trigger(
 ):
     config = TRIGGER_SCHEMA(config)
 
+    device_id_cfg: str = config[CONF_DEVICE_ID]
     entity_id: str = config[CONF_ENTITY_ID]
     trigger_type: str = config[CONF_TYPE]
     state_match = STATE_MATCH[trigger_type]
     subtype = config.get(CONF_SUBTYPE)
 
+    LOGGER.debug(
+        "attach_trigger device_id=%s entity_id=%s type=%s subtype=%s state_match=%s",
+        device_id_cfg,
+        entity_id,
+        trigger_type,
+        subtype,
+        sorted(state_match),
+    )
+
     async def _handle_event(event):
+        LOGGER.debug(
+            "state_change received device_id=%s cfg_entity_id=%s event_entity_id=%s old=%s new=%s",
+            device_id_cfg,
+            entity_id,
+            event.data.get("entity_id"),
+            _summarize_state(event.data.get("old_state")),
+            _summarize_state(event.data.get("new_state")),
+        )
+
         new_state = event.data.get("new_state")
         if new_state is None:
             return
@@ -260,17 +283,21 @@ async def async_attach_trigger(
 
         if not ok:
             LOGGER.debug(
-                "trigger not matched entity_id=%s type=%s candidates=%s",
+                "trigger not matched device_id=%s entity_id=%s type=%s subtype=%s candidates=%s",
+                device_id_cfg,
                 entity_id,
                 trigger_type,
+                subtype,
                 sorted(seen)[:20],
             )
             return
 
         LOGGER.debug(
-            "trigger fired entity_id=%s type=%s state=%s attrs=%s",
+            "trigger fired device_id=%s entity_id=%s type=%s subtype=%s state=%s attrs=%s",
+            device_id_cfg,
             entity_id,
             trigger_type,
+            subtype,
             new_state.state,
             {k: new_state.attributes.get(k) for k in SUPPORTED_ATTRS if k in new_state.attributes},
         )
@@ -281,12 +308,11 @@ async def async_attach_trigger(
                 **trigger_info,
                 "platform": "device",
                 "domain": DOMAIN,
-                "device_id": config[CONF_DEVICE_ID],
+                "device_id": device_id_cfg,
                 "entity_id": entity_id,
                 "type": trigger_type,
                 "subtype": subtype,
             },
         )
 
-    LOGGER.debug("attach_trigger entity_id=%s type=%s subtype=%s", entity_id, trigger_type, subtype)
     return async_track_state_change_event(hass, [entity_id], _handle_event)

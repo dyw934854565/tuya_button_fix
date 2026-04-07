@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .const import DOMAIN, LOGGER_NAME
+from .const import DOMAIN, LOGGER_NAME, SCENE_DID
 
 LOGGER = logging.getLogger(LOGGER_NAME)
 
@@ -47,7 +47,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             if part
         ).lower()
 
-        matched = any(k in haystack for k in ("switch_mode", "switchmode", "action", "click", "press", "button", "key"))
+        if getattr(ent, "device_id", None) in { SCENE_DID }:
+            matched = True
+        else:
+            matched = any(k in haystack for k in ("switch_mode", "switchmode", "action", "click", "press", "button", "key"))
+        
         if not matched:
             if tuya_like <= 50:
                 LOGGER.debug(
