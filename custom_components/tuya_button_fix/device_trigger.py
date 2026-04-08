@@ -250,49 +250,19 @@ async def async_attach_trigger(
             event.data.get("entity_id"),
             _summarize_state(event.data.get("old_state")),
             _summarize_state(event.data.get("new_state")),
-            event.data,
         )
 
         new_state = event.data.get("new_state")
         if new_state is None:
             return
-
-        ok = False
-        seen: set[str] = set()
-        for s in _iter_action_strings(new_state.state):
-            s = str(s)
-            if s:
-                seen.add(s)
-                if s in state_match:
-                    ok = True
-                    break
-
-        if not ok:
-            for attr in SUPPORTED_ATTRS:
-                if attr not in new_state.attributes:
-                    continue
-                val = new_state.attributes.get(attr)
-                for s in _iter_action_strings(val):
-                    s = str(s)
-                    if s:
-                        seen.add(s)
-                        if s in state_match:
-                            ok = True
-                            break
-                if ok:
-                    break
-
-        if not ok:
-            LOGGER.debug(
-                "trigger not matched device_id=%s entity_id=%s type=%s subtype=%s candidates=%s",
-                device_id_cfg,
-                entity_id,
-                trigger_type,
-                subtype,
-                sorted(seen)[:20],
-            )
+        device_class = new_state.attributes.get('device_class')
+        if device_class is not 'button':
             return
-
+        event_type = new_state.attributes.get('event_type')
+        if event_type is None:
+            return
+        if event_type not in state_match:
+            return
         LOGGER.debug(
             "trigger fired device_id=%s entity_id=%s type=%s subtype=%s state=%s attrs=%s",
             device_id_cfg,
