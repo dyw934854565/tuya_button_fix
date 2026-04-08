@@ -94,9 +94,12 @@ def _trigger_types_for_entry(entry: er.RegistryEntry, base_device_id: str) -> tu
         entity_id,
         entity_id in _SCENE_ONLY_TUYA_ENTITY_IDS,
     )
-    if base_device_id in _SCENE_ONLY_TUYA_DEVICES and entity_id in _SCENE_ONLY_TUYA_ENTITY_IDS:
-        LOGGER.debug("仅返回 scene_click 触发器")
-        return (TRIGGER_TYPE_SCENE)
+    if base_device_id in _SCENE_ONLY_TUYA_DEVICES:
+        if entity_id in _SCENE_ONLY_TUYA_ENTITY_IDS:
+            LOGGER.debug("仅返回 scene_click 触发器")
+            return (TRIGGER_TYPE_SCENE)
+        else:
+            return ()
     LOGGER.debug("返回默认触发器类型：single_click、double_click、long_press")
     return (TRIGGER_TYPE_SINGLE, TRIGGER_TYPE_DOUBLE, TRIGGER_TYPE_LONG)
 
