@@ -142,8 +142,8 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str):
             LOGGER.debug(
                 "准备添加触发器：entity_id=%s trigger_type=%s original_name=%s subtype_detected=%s subtype_display=%s",
                 entry.entity_id,
-                getattr(entry, "original_name", None),
                 trigger_type,
+                getattr(entry, "original_name", None),
                 subtype_detected,
                 subtype_display,
             )
@@ -190,22 +190,23 @@ async def async_attach_trigger(
     )
 
     async def _handle_event(event):
-        LOGGER.debug(
-            "state_change received device_id=%s cfg_entity_id=%s event_entity_id=%s old=%s new=%s",
-            device_id_cfg,
-            entity_id,
-            event.data.get("entity_id"),
-            event.data.get("old_state"),
-            event.data.get("new_state"),
-        )
-
         new_state = event.data.get("new_state")
         if new_state is None:
             return
+        
         device_class = new_state.attributes.get('device_class')
+        event_type = new_state.attributes.get('event_type')
+        LOGGER.debug(
+            "state_change received device_id=%s cfg_entity_id=%s type=%s event_entity_id=%s device_class=%s event_type=%s",
+            device_id_cfg,
+            entity_id,
+            trigger_type,
+            event.data.get("entity_id"),
+            device_class,
+            event_type,
+        )
         if device_class is not 'button':
             return
-        event_type = new_state.attributes.get('event_type')
         if event_type is None:
             return
         if event_type not in state_match:
