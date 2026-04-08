@@ -213,7 +213,7 @@ async def async_attach_trigger(
             )
             # return
         else:
-            if device_class is not 'button':
+            if device_class != 'button':
                 LOGGER.debug("device_class is not button, skip")
                 return
             if event_type is None:
