@@ -197,19 +197,23 @@ async def async_attach_trigger(
         device_class = new_state.attributes.get('device_class')
         event_type = new_state.attributes.get('event_type')
         LOGGER.debug(
-            "state_change received device_id=%s cfg_entity_id=%s type=%s event_entity_id=%s device_class=%s event_type=%s",
+            "state_change received device_id=%s cfg_entity_id=%s type=%s event_entity_id=%s device_class=%s event_type=%s state_match=%s",
             device_id_cfg,
             entity_id,
             trigger_type,
             event.data.get("entity_id"),
             device_class,
             event_type,
+            sorted(state_match),
         )
         if device_class is not 'button':
+            LOGGER.debug("device_class is not button, skip")
             return
         if event_type is None:
+            LOGGER.debug("event_type is None, skip")
             return
         if event_type not in state_match:
+            LOGGER.debug("event_type not in state_match, skip")
             return
         LOGGER.debug(
             "trigger fired device_id=%s entity_id=%s type=%s subtype=%s state=%s attrs=%s",
