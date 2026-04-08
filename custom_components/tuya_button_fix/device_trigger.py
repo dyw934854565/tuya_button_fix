@@ -207,7 +207,9 @@ async def async_attach_trigger(
             sorted(state_match),
         )
         if entity_id in _SCENE_ONLY_TUYA_ENTITY_IDS:
-            LOGGER.debug("entity_id is scene_only, new_state=%s old_state=%s",
+            LOGGER.debug("entity_id is scene_only, new_state=%s old_state=%s new_attrs=%s old_attrs=%s",
+                new_state.state,
+                old_state.state,
                 new_state.attributes,
                 old_state.attributes,
             )
