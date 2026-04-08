@@ -244,12 +244,13 @@ async def async_attach_trigger(
 
     async def _handle_event(event):
         LOGGER.debug(
-            "state_change received device_id=%s cfg_entity_id=%s event_entity_id=%s old=%s new=%s",
+            "state_change received device_id=%s cfg_entity_id=%s event_entity_id=%s old=%s new=%s event=%s",
             device_id_cfg,
             entity_id,
             event.data.get("entity_id"),
             _summarize_state(event.data.get("old_state")),
             _summarize_state(event.data.get("new_state")),
+            event.data,
         )
 
         new_state = event.data.get("new_state")

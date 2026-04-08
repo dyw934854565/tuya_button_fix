@@ -27,8 +27,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     for ent in list(entity_reg.entities.values()):
         if getattr(ent, "device_id", None) is None:
             continue
-        if ent.domain not in {"sensor", "select", "event"}:
-            continue
         platform = getattr(ent, "platform", None)
         if not platform or "tuya" not in platform:
             continue
@@ -50,7 +48,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if getattr(ent, "device_id", None) in { SCENE_DID }:
             matched = True
         else:
-            matched = any(k in haystack for k in ("switch_mode", "switchmode", "action", "click", "press", "button", "key"))
+            if ent.domain not in {"sensor", "select", "event"}:
+                matched = False
+            else:
+                matched = any(k in haystack for k in ("switch_mode", "switchmode", "action", "click", "press", "button", "key"))
         
         if not matched:
             if tuya_like <= 50:
