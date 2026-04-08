@@ -97,7 +97,7 @@ def _trigger_types_for_entry(entry: er.RegistryEntry, base_device_id: str) -> tu
     if base_device_id in _SCENE_ONLY_TUYA_DEVICES:
         if entity_id in _SCENE_ONLY_TUYA_ENTITY_IDS:
             LOGGER.debug("仅返回 scene_click 触发器")
-            return (TRIGGER_TYPE_SCENE)
+            return (TRIGGER_TYPE_SCENE,)
         else:
             return ()
     LOGGER.debug("返回默认触发器类型：single_click、double_click、long_press")
@@ -124,25 +124,15 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str):
     triggers: list[dict] = []
     entries = er.async_entries_for_device(entity_reg, base_device_id)
     LOGGER.debug(
-        "async_get_triggers device_id=%s base_device_id=%s entity_count=%s",
+        "async_get_triggers device_id=%s base_device_id=%s original_name=%s entity_count=%s",
         device_id,
         base_device_id,
+        getattr(entry, "original_name", None),
         len(entries),
     )
 
-    logged = 0
     for entry in entries:
-        if logged < 50:
-            LOGGER.debug(
-                "device entity entity_id=%s domain=%s unique_id=%s original_name=%s platform=%s",
-                entry.entity_id,
-                entry.domain,
-                getattr(entry, "unique_id", None),
-                getattr(entry, "original_name", None),
-                getattr(entry, "platform", None),
-            )
-            logged += 1
-
+        
         if entry.domain not in ALLOWED_DOMAINS:
             continue
 
@@ -150,6 +140,13 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str):
         # Show entity name together with subtype, to make UI labels clearer
         subtype_display = (getattr(entry, "original_name", None) or entry.entity_id or "").strip() or subtype_detected
         for trigger_type in _trigger_types_for_entry(entry, base_device_id):
+            LOGGER.debug(
+                "准备添加触发器：entity_id=%s trigger_type=%s subtype_detected=%s subtype_display=%s",
+                entry.entity_id,
+                trigger_type,
+                subtype_detected,
+                subtype_display,
+            )
             triggers.append(
                 {
                     CONF_PLATFORM: "device",
@@ -194,7 +191,7 @@ async def async_attach_trigger(
 
     async def _handle_event(event):
         LOGGER.debug(
-            "state_change received device_id=%s cfg_entity_id=%s event_entity_id=%s old=%s new=%s event=%s",
+            "state_change received device_id=%s cfg_entity_id=%s event_entity_id=%s old=%s new=%s",
             device_id_cfg,
             entity_id,
             event.data.get("entity_id"),
@@ -220,6 +217,7 @@ async def async_attach_trigger(
             trigger_type,
             subtype,
             new_state.state,
+            new_state.attributes,
         )
 
         hass.async_run_job(
