@@ -3,27 +3,8 @@ LOGGER_NAME = "custom_components.tuya_button_fix"
 EVENT_TYPE = "tuya_button_click"
 SCENE_DID= "16ec9e3de8a500f00a976db1736df44b"
 SCENE_ENTITY_ID = "6c4fa5eaa2b73d87fdf9cp"
-SUPPORTED_ATTRS = (
-    "scene_1",
-    "scene_2",
-    "scene_3",
-    "scene_4",
-    "switch_mode1",
-    "switch_mode2",
-    "switch_mode3",
-    "switch_mode4",
-    "switch_mode",
-    "switch_mode_1",
-    "event_type",
+ALLOWED_DOMAINS: set[str] = {
+    "button",
     "event",
-    "action",
-    "type",
-)
-VALUE_MAP = {
-    "click": "single",
-    "single_click": "single",
-    "double": "double",
-    "double_click": "double",
-    "press": "long",
-    "long_press": "long",
+    "switch",
 }

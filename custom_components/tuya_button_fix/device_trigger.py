@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_registry as er
 from homeassistant.helpers.event import async_track_state_change_event
 
-from .const import DOMAIN, LOGGER_NAME, SUPPORTED_ATTRS, SCENE_DID
+from .const import DOMAIN, LOGGER_NAME, SCENE_DID, SCENE_ENTITY_ID, ALLOWED_DOMAINS
 
 LOGGER = logging.getLogger(LOGGER_NAME)
 
@@ -34,17 +34,10 @@ _INFO_LOGGED = False
 _SCENE_ONLY_TUYA_DEVICES: set[str] = {
     SCENE_DID,
 }
-
-ALLOWED_DOMAINS: set[str] = {
-    "binary_sensor",
-    "button",
-    "event",
-    "number",
-    "select",
-    "sensor",
-    "switch",
-    "text",
+_SCENE_ONLY_TUYA_ENTITY_IDS: set[str] = {
+    SCENE_ENTITY_ID,
 }
+
 
 TRIGGER_TYPE_SINGLE = "single_click"
 TRIGGER_TYPE_DOUBLE = "double_click"
@@ -89,67 +82,23 @@ def _extract_subtype(entry: er.RegistryEntry) -> str:
 
     return "button"
 
-def _is_action_unique_id(unique_id: str | None) -> bool:
-    uid = (unique_id or "").lower()
-    return "switch_mode" in uid or "switchmode" in uid or "scene_" in uid or "scene" in uid
-
 def _trigger_types_for_entry(entry: er.RegistryEntry, base_device_id: str) -> tuple[str, ...]:
     unique_id = (entry.unique_id or "").lower()
     entity_id = (entry.entity_id or "").lower()
     original_name = (getattr(entry, "original_name", None) or "").lower()
     # Only expose scene triggers for whitelisted Tuya devices
-    if base_device_id in _SCENE_ONLY_TUYA_DEVICES and (
-        "scene_" in unique_id or "scene_" in entity_id or "scene" in original_name
-    ):
-        return (TRIGGER_TYPE_SCENE,)
-    if "scene_" in unique_id or "scene_" in entity_id:
-        return ()
+    LOGGER.debug(
+        "检查设备是否启用 scene_click：base_device_id=%s 在 _SCENE_ONLY_TUYA_DEVICES=%s，entity_id=%s 在 _SCENE_ONLY_TUYA_ENTITY_IDS=%s",
+        base_device_id,
+        base_device_id in _SCENE_ONLY_TUYA_DEVICES,
+        entity_id,
+        entity_id in _SCENE_ONLY_TUYA_ENTITY_IDS,
+    )
+    if base_device_id in _SCENE_ONLY_TUYA_DEVICES and entity_id in _SCENE_ONLY_TUYA_ENTITY_IDS:
+        LOGGER.debug("仅返回 scene_click 触发器")
+        return (TRIGGER_TYPE_SCENE)
+    LOGGER.debug("返回默认触发器类型：single_click、double_click、long_press")
     return (TRIGGER_TYPE_SINGLE, TRIGGER_TYPE_DOUBLE, TRIGGER_TYPE_LONG)
-
-def _iter_action_strings(value):
-    if value is None:
-        return
-    if isinstance(value, str):
-        yield value
-        return
-    if isinstance(value, (int, float, bool)):
-        yield str(value)
-        return
-    if isinstance(value, dict):
-        for v in value.values():
-            yield from _iter_action_strings(v)
-        return
-    if isinstance(value, (list, tuple, set)):
-        for v in value:
-            yield from _iter_action_strings(v)
-        return
-    yield str(value)
-
-def _summarize_state(state):
-    if state is None:
-        return None
-    attrs = state.attributes or {}
-    interesting = {}
-    for key in ("event_type", "event_types"):
-        if key in attrs:
-            interesting[key] = attrs.get(key)
-    for key in SUPPORTED_ATTRS:
-        if key in attrs:
-            interesting[key] = attrs.get(key)
-    return {
-        "state": state.state,
-        "attrs": interesting,
-        "last_changed": getattr(state, "last_changed", None),
-        "last_updated": getattr(state, "last_updated", None),
-    }
-
-
-def _looks_like_action_entity(entry: er.RegistryEntry) -> bool:
-    # Avoid false positives (e.g. battery entities of a device named "button").
-    # Only treat entities as actionable when their unique_id indicates an action DP.
-    if entry.domain == "event":
-        return _is_action_unique_id(entry.unique_id)
-    return _is_action_unique_id(entry.unique_id)
 
 
 async def async_get_triggers(hass: HomeAssistant, device_id: str):
@@ -192,8 +141,6 @@ async def async_get_triggers(hass: HomeAssistant, device_id: str):
             logged += 1
 
         if entry.domain not in ALLOWED_DOMAINS:
-            continue
-        if not _looks_like_action_entity(entry):
             continue
 
         subtype_detected = _extract_subtype(entry)
@@ -248,8 +195,8 @@ async def async_attach_trigger(
             device_id_cfg,
             entity_id,
             event.data.get("entity_id"),
-            _summarize_state(event.data.get("old_state")),
-            _summarize_state(event.data.get("new_state")),
+            event.data.get("old_state"),
+            event.data.get("new_state"),
         )
 
         new_state = event.data.get("new_state")
@@ -270,7 +217,6 @@ async def async_attach_trigger(
             trigger_type,
             subtype,
             new_state.state,
-            {k: new_state.attributes.get(k) for k in SUPPORTED_ATTRS if k in new_state.attributes},
         )
 
         hass.async_run_job(

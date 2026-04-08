@@ -6,7 +6,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
-from .const import DOMAIN, LOGGER_NAME, SCENE_DID
+from .const import DOMAIN, LOGGER_NAME, SCENE_DID, ALLOWED_DOMAINS
 
 LOGGER = logging.getLogger(LOGGER_NAME)
 
@@ -48,7 +48,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if getattr(ent, "device_id", None) in { SCENE_DID }:
             matched = True
         else:
-            if ent.domain not in {"sensor", "select", "event"}:
+            if ent.domain not in ALLOWED_DOMAINS:
                 matched = False
             else:
                 matched = any(k in haystack for k in ("switch_mode", "switchmode", "action", "click", "press", "button", "key"))
