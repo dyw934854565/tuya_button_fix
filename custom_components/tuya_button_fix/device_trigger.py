@@ -191,9 +191,9 @@ async def async_attach_trigger(
 
     async def _handle_event(event):
         new_state = event.data.get("new_state")
+        old_state = event.data.get("old_state")
         if new_state is None:
             return
-        
         device_class = new_state.attributes.get('device_class')
         event_type = new_state.attributes.get('event_type')
         LOGGER.debug(
@@ -206,15 +206,22 @@ async def async_attach_trigger(
             event_type,
             sorted(state_match),
         )
-        if device_class is not 'button':
-            LOGGER.debug("device_class is not button, skip")
-            return
-        if event_type is None:
-            LOGGER.debug("event_type is None, skip")
-            return
-        if event_type not in state_match:
-            LOGGER.debug("event_type not in state_match, skip")
-            return
+        if entity_id in _SCENE_ONLY_TUYA_ENTITY_IDS:
+            LOGGER.debug("entity_id is scene_only, new_state=%s old_state=%s",
+                new_state.attributes,
+                old_state.attributes,
+            )
+            # return
+        else:
+            if device_class is not 'button':
+                LOGGER.debug("device_class is not button, skip")
+                return
+            if event_type is None:
+                LOGGER.debug("event_type is None, skip")
+                return
+            if event_type not in state_match:
+                LOGGER.debug("event_type not in state_match, skip")
+                return
         LOGGER.debug(
             "trigger fired device_id=%s entity_id=%s type=%s subtype=%s state=%s attrs=%s",
             device_id_cfg,
